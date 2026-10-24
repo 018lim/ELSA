@@ -1,0 +1,31 @@
+{
+  "_comment": "녹아웃 ELB 캡처: '연 36.00%'는 최대 수익률이지 쿠폰이 아니다. 청약기간은 투자기간이 아니다",
+  "raw": {
+    "product_type": "knockout",
+    "underlyings": [{"name": "KOSPI200", "ticker_suggestion": "^KS200"}],
+    "investment_period_text": null,
+    "coupon_text": "연 36.00% 특정조건 충족시 수익률(세전 최대)",
+    "strike_text": "행사가 100%",
+    "participation_text": "참여율 100%",
+    "ko_barriers_text": "낙아웃 136%",
+    "rebate_text": "낙아웃발생시 수익률 2%",
+    "max_loss_text": "조건 미충족시 손실률(최대) 0%",
+    "conditions_text": "행사가 100%, 참여율 100%, 낙아웃 136%, 낙아웃발생시 수익률 2%",
+    "field_notes": [],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "knockout",
+    "fields": {
+      "underlyings": ["KOSPI200"],
+      "strike": 1.0,
+      "participation": 1.0,
+      "ko_upper": 1.36,
+      "rebate": 0.02,
+      "max_loss": 0.0
+    },
+    "absent": ["coupon_annual", "maturity_months"],
+    "n_warnings": 0
+  }
+}

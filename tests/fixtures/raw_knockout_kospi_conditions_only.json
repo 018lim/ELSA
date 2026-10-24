@@ -1,0 +1,25 @@
+{
+  "_comment": "추출기가 필드별 문구를 나누지 못하고 상환조건 원문만 준 경우: 키워드로 찾아야 한다",
+  "raw": {
+    "product_type": null,
+    "underlyings": [{"name": "KOSPI200", "ticker_suggestion": null}],
+    "investment_period_text": "2026/10/30 ~ 2027/10/29",
+    "conditions_text": "행사가 100%, 참여율 100%, 낙아웃 136%, 낙아웃발생시 수익률 2%",
+    "field_notes": [],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "knockout",
+    "fields": {
+      "underlyings": ["KOSPI200"],
+      "maturity_months": 12,
+      "strike": 1.0,
+      "participation": 1.0,
+      "ko_upper": 1.36,
+      "rebate": 0.02
+    },
+    "absent": ["ko_lower"],
+    "n_warnings": 0
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "raw": {
+    "product_type": "autocall",
+    "underlyings": [
+      {"name": "KOSPI200", "ticker_suggestion": "^KS200"},
+      {"name": "S&P500", "ticker_suggestion": "^GSPC"},
+      {"name": "Eurostoxx50", "ticker_suggestion": "^STOXX50E"}
+    ],
+    "underlyings_text": "KOSPI200, S&P500, Eurostoxx50",
+    "investment_period_text": "2026/10/30 ~ 2029/11/02",
+    "maturity_text": null,
+    "obs_period_text": null,
+    "barriers_text": "85-85-85-85-80-80-80-80-75-75-70-70 / KI 40",
+    "coupon_text": null,
+    "ki_text": "KI 40",
+    "dummy_coupon": null,
+    "monthly_coupon_text": null,
+    "conditions_text": "85-85-85-85-80-80-80-80-75-75-70-70 / KI 40",
+    "field_notes": [],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "autocall",
+    "fields": {
+      "underlyings": ["KOSPI200", "S&P500", "EUROSTOXX50"],
+      "maturity_months": 36,
+      "obs_period_months": 3,
+      "barriers": [0.85, 0.85, 0.85, 0.85, 0.8, 0.8, 0.8, 0.8, 0.75, 0.75, 0.7, 0.7],
+      "ki_mode": "daily",
+      "ki_barrier": 0.4
+    },
+    "absent": ["coupon_annual", "monthly_coupon_barrier"],
+    "low_confidence": ["obs_period_months"],
+    "n_warnings": 0
+  }
+}

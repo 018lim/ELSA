@@ -1,0 +1,29 @@
+{
+  "_comment": "원금 손실형 스텝다운 ELS 캡처: 손실률(최대) -100%(제한 없음), 청약기간만 있고 투자기간 없음",
+  "raw": {
+    "product_type": "autocall",
+    "underlyings": [{"name": "KOSPI200"}, {"name": "S&P500"}, {"name": "Eurostoxx50"}],
+    "investment_period_text": null,
+    "barriers_text": "75-75-75-75-75-70 / KI 40",
+    "coupon_text": "연 7.50% 특정조건 충족시 수익률(세전 최대)",
+    "ki_text": "KI 40",
+    "max_loss_text": "조건 미충족시 손실률(최대) -100%",
+    "conditions_text": "75-75-75-75-75-70 / KI 40",
+    "field_notes": [],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "autocall",
+    "fields": {
+      "underlyings": ["KOSPI200", "S&P500", "EUROSTOXX50"],
+      "barriers": [0.75, 0.75, 0.75, 0.75, 0.75, 0.7],
+      "coupon_annual": 0.075,
+      "ki_mode": "daily",
+      "ki_barrier": 0.4,
+      "max_loss": 1.0
+    },
+    "absent": ["maturity_months", "obs_period_months", "monthly_coupon_barrier"],
+    "n_warnings": 0
+  }
+}

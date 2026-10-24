@@ -1,0 +1,11 @@
+{
+  "삼성전자": {"ticker": "005930.KS", "vol": 0.32, "div": 0.006, "aliases": ["Samsung Electronics", "삼성전자보통주"]},
+  "SK하이닉스": {"ticker": "000660.KS", "vol": 0.45, "div": 0.002, "aliases": ["SK hynix", "에스케이하이닉스", "하이닉스"]},
+  "KOSPI200": {"ticker": "069500.KS", "vol": 0.18, "div": 0.018, "aliases": ["코스피200", "KOSPI 200", "코스피 200"],
+               "note": "Yahoo의 ^KS200 시세가 비어 있어 KOSPI200을 추종하는 KODEX 200 ETF로 대신 조회"},
+  "S&P500": {"ticker": "^GSPC", "vol": 0.17, "div": 0.013, "aliases": ["S&P 500", "SP500", "SPX"],
+             "div_ticker": "SPY", "note": "Yahoo에 지수 배당 정보가 없어 S&P500 추종 ETF(SPY)의 최근 1년 배당으로 계산"},
+  "EUROSTOXX50": {"ticker": "^STOXX50E", "vol": 0.18, "div": 0.030, "aliases": ["Euro Stoxx 50", "EURO STOXX 50", "유로스탁스50", "SX5E"],
+                  "div_ticker": "FEZ", "note": "Yahoo에 지수 배당 정보가 없어 유로스톡스50 추종 ETF(FEZ)의 최근 1년 배당으로 계산"},
+  "닛케이225": {"ticker": "^N225", "vol": 0.20, "div": 0.018, "aliases": ["NIKKEI225", "Nikkei 225", "니케이225", "N225"]}
+}

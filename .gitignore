@@ -1,0 +1,14 @@
+# 가상환경
+.venv/
+
+# 비밀값 (API 키)
+.streamlit/secrets.toml
+
+# 개인 캡처·실제 상품 캡처 (로컬 테스트 전용)
+KakaoTalk_*
+tests/fixtures/images/
+
+# 파이썬 부산물
+__pycache__/
+*.pyc
+.pytest_cache/

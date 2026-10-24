@@ -1,0 +1,30 @@
+{
+  "_comment": "원금지급형 월지급식 ELB 캡처: 연 쿠폰 표시, 손실률(최대) 0%, 브랜드명(Ultra Hi-Five), 투자기간 없음",
+  "raw": {
+    "product_type": "autocall",
+    "underlyings": [{"name": "삼성전자", "ticker_suggestion": "005930.KS"}, {"name": "SK하이닉스", "ticker_suggestion": "000660.KS"}],
+    "investment_period_text": null,
+    "barriers_text": "85-85-85-85-85-85",
+    "coupon_text": "연 6.12% 특정조건 충족시 수익률(세전 최대)",
+    "ki_text": "NO KI",
+    "monthly_coupon_text": "월지급 65",
+    "max_loss_text": "조건 미충족시 손실률(최대) 0%",
+    "conditions_text": "85-85-85-85-85-85 / NO KI / 월지급 65",
+    "field_notes": [],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "autocall",
+    "fields": {
+      "underlyings": ["삼성전자", "SK하이닉스"],
+      "barriers": [0.85, 0.85, 0.85, 0.85, 0.85, 0.85],
+      "coupon_annual": 0.0612,
+      "ki_mode": "none",
+      "monthly_coupon_barrier": 0.65,
+      "max_loss": 0.0
+    },
+    "absent": ["maturity_months", "obs_period_months", "ki_barrier"],
+    "n_warnings": 0
+  }
+}

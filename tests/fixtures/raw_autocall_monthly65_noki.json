@@ -1,0 +1,28 @@
+{
+  "raw": {
+    "product_type": "autocall",
+    "underlyings": [{"name": "삼성전자", "ticker_suggestion": "005930.KS"}, {"name": "SK하이닉스", "ticker_suggestion": null}],
+    "investment_period_text": "2026/10/30 ~ 2029/11/01",
+    "barriers_text": "85-85-85-85-85-85",
+    "ki_text": "NO KI",
+    "monthly_coupon_text": "월지급 65",
+    "conditions_text": "85-85-85-85-85-85 / NO KI / 월지급 65",
+    "field_notes": [{"field": "barriers", "source_text": "85-85-85-85-85-85 / NO KI / 월지급 65", "confidence": "high"}],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "autocall",
+    "fields": {
+      "underlyings": ["삼성전자", "SK하이닉스"],
+      "maturity_months": 36,
+      "obs_period_months": 6,
+      "barriers": [0.85, 0.85, 0.85, 0.85, 0.85, 0.85],
+      "ki_mode": "none",
+      "monthly_coupon_barrier": 0.65
+    },
+    "absent": ["ki_barrier", "coupon_annual"],
+    "low_confidence": ["obs_period_months"],
+    "n_warnings": 0
+  }
+}

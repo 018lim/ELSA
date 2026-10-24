@@ -1,0 +1,31 @@
+{
+  "_comment": "간이투자설명서식 문구: 쿠폰·낙인 문장, 평가 주기 명시, 배리어 개수 불일치 경고",
+  "raw": {
+    "product_type": "autocall",
+    "underlyings": [{"name": "코스피200지수"}, {"name": "S&P 500 지수"}],
+    "maturity_text": "만기 3년(조기상환 6개월)",
+    "obs_period_text": "6개월",
+    "barriers_text": "90-90-85-85-80",
+    "coupon_text": "세전 연 8.0%",
+    "ki_text": "최초기준가격의 50% 미만으로 하락한 적이 있는 경우",
+    "dummy_coupon": true,
+    "field_notes": [{"field": "coupon_annual", "source_text": "세전 연 8.0%", "confidence": "low"}],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "autocall",
+    "fields": {
+      "underlyings": ["KOSPI200", "S&P500"],
+      "maturity_months": 36,
+      "obs_period_months": 6,
+      "barriers": [0.9, 0.9, 0.85, 0.85, 0.8],
+      "coupon_annual": 0.08,
+      "ki_mode": "daily",
+      "ki_barrier": 0.5,
+      "dummy_coupon": true
+    },
+    "low_confidence": ["coupon_annual"],
+    "n_warnings": 1
+  }
+}

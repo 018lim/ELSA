@@ -1,0 +1,32 @@
+{
+  "raw": {
+    "product_type": "knockout",
+    "underlyings": [{"name": "삼성전자", "ticker_suggestion": "005930.KS"}],
+    "investment_period_text": "2026/10/30 ~ 2027/10/29",
+    "strike_text": "행사가 100%",
+    "participation_text": "참여율 100%",
+    "ko_barriers_text": "낙아웃 137%",
+    "rebate_text": "낙아웃발생시 수익률 3%",
+    "ko_observation_text": null,
+    "min_return_text": null,
+    "conditions_text": "행사가 100%, 참여율 100%, 낙아웃 137%, 낙아웃발생시 수익률 3%",
+    "field_notes": [],
+    "warnings": [],
+    "unsupported_features": []
+  },
+  "expected": {
+    "product_type": "knockout",
+    "fields": {
+      "underlyings": ["삼성전자"],
+      "maturity_months": 12,
+      "strike": 1.0,
+      "participation": 1.0,
+      "ko_upper": 1.37,
+      "rebate": 0.03,
+      "ko_observation": "daily"
+    },
+    "absent": ["ko_lower", "min_return"],
+    "low_confidence": ["ko_observation"],
+    "n_warnings": 0
+  }
+}
