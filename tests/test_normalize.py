@@ -80,6 +80,17 @@ def test_parse_months(text, months):
     assert parse_months(text) == months
 
 
+@pytest.mark.parametrize("text", ["2029년 11월 2일", "만기일 2029.11.02", "2029/11/02"])
+def test_parse_months_ignores_dates(text):
+    assert parse_months(text) is None  # 2029년을 기간으로 읽으면 24,348개월이 된다
+
+
+def test_maturity_date_falls_back_to_investment_period():
+    raw = {"product_type": "autocall", "barriers_text": "90-85-80", "maturity_text": "2029년 11월 2일",
+           "investment_period_text": "2026/11/02 ~ 2029/11/02"}
+    assert normalize_extraction(raw).fields["maturity_months"] == 36
+
+
 @pytest.mark.parametrize(
     "text, months",
     [
@@ -92,6 +103,11 @@ def test_parse_months(text, months):
 )
 def test_months_between_dates(text, months):
     assert months_between_dates(text) == months
+
+
+@pytest.mark.parametrize("text", ["2026/13/30 ~ 2029/11/02", "2026/02/31 ~ 2029/11/02", "2029/11/02 ~ 2026/10/30"])
+def test_months_between_dates_rejects_bad_dates(text):
+    assert months_between_dates(text) is None
 
 
 @pytest.mark.parametrize(

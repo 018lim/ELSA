@@ -1,8 +1,8 @@
 """무위험이자율 조회: 국고채(3년) 금리 (streamlit 의존 없음).
 
 국내 ELS는 원화로 정산되므로 원화 금리를 쓴다. 공식 출처인 한국은행 ECOS를 먼저 조회하고,
-실패하면 네이버 금융의 값을 쓴다. Streamlit Cloud에서는 ECOS 접속이 제한 시간 초과로 실패하기
-때문이다. 네이버 주소는 공개 문서가 없는 비공식 주소라 응답을 검사해, 형식이 바뀌면 값을 넣지 않고
+실패하면 네이버 금융의 값을 쓴다. Streamlit Cloud에서 ECOS 접속이 제한 시간 초과로 계속 실패한 적이
+있기 때문이다. 네이버 주소는 공개 문서가 없는 비공식 주소라 응답을 검사해, 형식이 바뀌면 값을 넣지 않고
 금리 직접 입력을 안내한다.
 
 인증키(ECOS_API_KEY)는 Gemini 키처럼 .streamlit/secrets.toml(로컬) 또는 배포 환경의 Secrets에서만
@@ -39,7 +39,7 @@ SOURCE_ECOS = "한국은행 ECOS"
 SOURCE_NAVER = "네이버 금융(레피니티브)"
 KTB_3Y_NAME = "국고채(3년)"
 ENTER_MANUALLY = "금리를 직접 입력해 주세요."
-TIMEOUT_S = 5  # 국내에서는 0.1초 안팎이고, 접속이 막힌 곳(Streamlit Cloud)에서는 기다려도 응답이 없다
+TIMEOUT_S = 5  # 정상이면 0.1초 안팎이고, 접속이 막혔을 때는 기다려도 응답이 없다
 
 
 class RateUnavailable(Exception):
@@ -55,25 +55,28 @@ class RateQuote:
 
 
 def parse_ecos_response(data: dict) -> RateQuote:
-    result = data.get("RESULT")
-    if result:  # 오류 응답: {"RESULT": {"CODE": "INFO-100", "MESSAGE": "..."}}
-        code = result.get("CODE", "")
-        if code == "INFO-100":
-            raise RateUnavailable("ECOS 인증키가 유효하지 않습니다. ECOS_API_KEY를 확인해 주세요.")
-        if code == "INFO-200":
+    try:
+        result = data.get("RESULT")
+        if result:  # 오류 응답: {"RESULT": {"CODE": "INFO-100", "MESSAGE": "..."}}
+            code = result.get("CODE", "")
+            if code == "INFO-100":
+                raise RateUnavailable("ECOS 인증키가 유효하지 않습니다. ECOS_API_KEY를 확인해 주세요.")
+            if code == "INFO-200":
+                raise RateUnavailable(f"최근 열흘간 국고채 금리 데이터가 없습니다. {ENTER_MANUALLY}")
+            raise RateUnavailable(f"ECOS 조회 오류: {result.get('MESSAGE', code)}")
+        rows = (data.get("StatisticSearch") or {}).get("row") or []
+        rows = [r for r in rows if r.get("DATA_VALUE") not in (None, "", "-")]
+        if not rows:
             raise RateUnavailable(f"최근 열흘간 국고채 금리 데이터가 없습니다. {ENTER_MANUALLY}")
-        raise RateUnavailable(f"ECOS 조회 오류: {result.get('MESSAGE', code)}")
-    rows = (data.get("StatisticSearch") or {}).get("row") or []
-    rows = [r for r in rows if r.get("DATA_VALUE") not in (None, "", "-")]
-    if not rows:
-        raise RateUnavailable(f"최근 열흘간 국고채 금리 데이터가 없습니다. {ENTER_MANUALLY}")
-    latest = max(rows, key=lambda r: r["TIME"])
-    t = latest["TIME"]
-    return RateQuote(
-        rate=float(latest["DATA_VALUE"]) / 100,
-        as_of=f"{t[:4]}-{t[4:6]}-{t[6:8]}",
-        name=latest.get("ITEM_NAME1") or KTB_3Y_NAME,
-    )
+        latest = max(rows, key=lambda r: r["TIME"])
+        t = latest["TIME"]
+        return RateQuote(
+            rate=float(latest["DATA_VALUE"]) / 100,
+            as_of=f"{t[:4]}-{t[4:6]}-{t[6:8]}",
+            name=latest.get("ITEM_NAME1") or KTB_3Y_NAME,
+        )
+    except (AttributeError, KeyError, TypeError, ValueError) as e:  # 대체 조회로 넘어갈 수 있게 공통 오류로
+        raise RateUnavailable(f"ECOS 응답 형식이 달라졌습니다. {ENTER_MANUALLY}") from e
 
 
 def parse_naver_response(data: dict) -> RateQuote:
