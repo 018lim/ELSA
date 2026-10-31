@@ -1,10 +1,11 @@
-"""엔진 검증 탭: 유럽형 콜옵션의 MC 가격을 Black-Scholes 해석해와 비교해 보여 준다.
+"""엔진 검증 탭: 콜옵션 정답 비교와 ELS 로직 점검(극단값 테스트) 결과를 보여 준다.
 
-계산은 elsa/pricing/verification.py가 하고 여기서는 입력·표시만 한다. 화면 값은 %(20)이고
-소수로 바꾸는 곳은 _read_inputs() 한 곳이다. st.tabs는 보이지 않는 탭도 매 실행 그리므로
+계산은 elsa/pricing/verification.py와 logic_checks.py가 하고 여기서는 입력·표시만 한다. 화면 값은
+%(20)이고 소수로 바꾸는 곳은 _read_inputs() 한 곳이다. st.tabs는 보이지 않는 탭도 매 실행 그리므로
 "검증 실행"을 눌렀을 때만 계산하고, 결과는 입력값 기준으로 캐시한다.
 
-- cached_report(params_json, n_paths, seed): 검증 결과 캐시 (@st.cache_data, dict 반환)
+- cached_report(params_json, n_paths, seed): 콜옵션 검증 결과 캐시 (@st.cache_data, dict 반환)
+- cached_logic_group(index, seed): 로직 점검 그룹 하나의 결과 캐시 (@st.cache_data, dict 목록 반환)
 - render_verification(): 탭 전체 표시
 """
 
@@ -17,6 +18,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from elsa.pricing.logic_checks import LOGIC_GROUPS, TOLERANCE
 from elsa.pricing.verification import (
     CONVERGENCE_NS,
     Z_95,
@@ -35,6 +37,11 @@ PASS_TEXT = {True: "통과 ✅", False: "확인 필요 ⚠️", None: "판정 �
 @st.cache_data(show_spinner=False, max_entries=32)
 def cached_report(params_json: str, n_paths: int, seed: int) -> dict:
     return asdict(run_verification(CallParams(**json.loads(params_json)), n_paths, seed))
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def cached_logic_group(index: int, seed: int) -> list[dict]:
+    return [asdict(check) for check in LOGIC_GROUPS[index][1](seed)]
 
 
 def _inputs() -> None:
@@ -156,20 +163,57 @@ def _render_antithetic(check: dict) -> None:
         c3.metric("표준오차 감소 배율", "—")
 
 
-def render_verification() -> None:
-    st.markdown(
-        "**엔진이 정확한지 정답을 아는 문제로 확인합니다.** ELS 평가와 같은 경로 생성·할인 코드에 페이오프만 "
-        "유럽형 콜옵션 max(S_T − K, 0)로 바꿔 계산하고, Black-Scholes 해석해와 비교합니다(단일 기초자산)."
+def _run_logic(seed: int) -> list[dict]:
+    """그룹별로 계산하며 진행 상황을 보여 준다. 처음 실행할 때만 시간이 걸린다."""
+    bar = st.progress(0.0, text="ELS 로직 점검을 준비하는 중입니다...")
+    rows: list[dict] = []
+    for i, (label, _) in enumerate(LOGIC_GROUPS):
+        bar.progress(i / len(LOGIC_GROUPS), text=f"ELS 로직 점검 중: {label}")
+        rows += cached_logic_group(i, seed)
+    bar.empty()
+    return rows
+
+
+def _render_logic(rows: list[dict]) -> None:
+    st.subheader("⑤ ELS 로직 점검 (극단값 테스트)")
+    st.caption("콜옵션으로 확인할 수 없는 조기상환·낙인 판정, 관측일 처리, 상관계수·워스트 계산을 정답이나 방향을 아는 극단 조건으로 확인합니다.")
+    passed = sum(r["passed"] for r in rows)
+    st.markdown(f"**{len(rows)}개 테스트 중 {passed}개 통과**")
+    table = pd.DataFrame([{
+        "테스트": r["name"] + (" ※" if r["uses_ci"] else ""),
+        "입력 조건": r["condition"],
+        "기대 결과": r["expected"],
+        "실제 결과": r["actual"],
+        "판정": PASS_TEXT[r["passed"]],
+    } for r in rows])
+    st.table(table, hide_index=True)
+    st.caption(
+        "※ 표시는 95% 신뢰구간으로 판정합니다. 몬테카를로 오차가 남아 있어 엔진이 정확해도 시드에 따라 가끔 ⚠️가 날 수 있습니다. "
+        "시드를 바꿔도 같은 테스트에서 반복되면 확인이 필요합니다."
     )
     st.caption(
-        "확인되는 것: 위험중립 드리프트·변동성·배당이 반영된 만기 가격 분포, 할인, 대조변수 통계. "
-        "확인되지 않는 것: 낙인·조기상환 판정, 월중 최저·최고, 상관계수·워스트 퍼포머 계산."
+        f"손 계산값 비교는 차이가 1.96 × 표준오차와 {TOLERANCE * 100:.4f}%p 중 큰 값 이내면 통과입니다(표준오차가 사실상 0인 곳의 "
+        "반올림 오차를 허용). 방향 테스트는 같은 시드의 공통 난수로 대소만 비교합니다. "
+        "시드는 위 입력값을 쓰고 경로 수는 테스트별로 고정입니다. 극단 조건에서 상식대로 작동한다는 확인이며, 모든 조건의 정확성을 증명하지는 않습니다."
+    )
+
+
+def render_verification() -> None:
+    st.markdown(
+        "**엔진이 정확한지 정답을 아는 문제로 확인합니다.** ①~④는 ELS 평가와 같은 경로 생성·할인 코드에 페이오프만 "
+        "유럽형 콜옵션 max(S_T − K, 0)로 바꿔 Black-Scholes 해석해와 비교합니다(단일 기초자산). "
+        "⑤는 기존 평가 함수를 극단 조건으로 실행해 ELS 판정 로직을 점검합니다."
+    )
+    st.caption(
+        "①~④로 확인되는 것: 위험중립 드리프트·변동성·배당이 반영된 만기 가격 분포, 할인, 대조변수 통계. "
+        "⑤로 확인되는 것: 조기상환·낙인 판정, 관측일 처리, 상관계수·워스트 퍼포머 계산."
     )
     _inputs()
     key = _read_inputs()
     if st.button("검증 실행", type="primary", width="stretch"):
-        with st.spinner("시뮬레이션 중입니다... (수렴 그래프의 500,000회 포함)"):
-            st.session_state[S.VF_RESULT] = {"key": key, "report": cached_report(*key)}
+        with st.spinner("콜옵션 검증 중입니다... (수렴 그래프의 500,000회 포함)"):
+            report = cached_report(*key)
+        st.session_state[S.VF_RESULT] = {"key": key, "report": report, "logic": _run_logic(key[2])}
 
     saved = st.session_state.get(S.VF_RESULT)
     if not saved:
@@ -187,3 +231,4 @@ def render_verification() -> None:
     _render_convergence(report["convergence"], report["main"]["bs"])
     _render_grid(report["grid"], p["s0"])
     _render_antithetic(report["main"])
+    _render_logic(saved["logic"])

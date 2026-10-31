@@ -81,7 +81,7 @@ VF_DIV = "vf_div"
 VF_YEARS = "vf_years"
 VF_PATHS = "vf_paths"
 VF_SEED = "vf_seed"
-VF_RESULT = "vf_result"  # {"key": 입력값, "report": dict}
+VF_RESULT = "vf_result"  # {"key": 입력값, "report": dict, "logic": list[dict]}
 
 PENDING_FILL = "pending_fill"
 AUTOFILL_META = "autofill_meta"  # {위젯 key: {"source": 근거 원문, "low": bool}}

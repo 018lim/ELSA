@@ -4,7 +4,7 @@
 - MC: 기본 조건의 BS 일치, 시드 재현, 배당 반영, S0 배율, 1/√N 수렴
 - 표준오차: 쌍 평균 기준 < 독립 경로 기준, 독립 경로 기준이 실제 독립 시뮬레이션과 일치
 - 일괄 검증: 15개 조건, 같은 경로 공유가 개별 계산과 같은 값, 판정 불가 처리
-- 화면: 검증 실행, 입력 변경 시 이전 결과 숨김
+- 화면: 검증 실행(콜옵션 비교 + 로직 점검), 입력 변경 시 이전 결과 숨김
 """
 
 import math
@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from elsa.pricing import logic_checks
 from elsa.pricing.engine import discount_factor
 from elsa.pricing.verification import (
     CONVERGENCE_NS,
@@ -29,7 +30,7 @@ from elsa.pricing.verification import (
 )
 
 BASE = CallParams(s0=100.0, strike=100.0, vol=0.2, rate=0.03, div=0.0, months=12)
-TITLES = ("① 정답 비교", "② 수렴 그래프", "③ 여러 조건 일괄 검증", "④ 대조변수 적용 효과")
+TITLES = ("① 정답 비교", "② 수렴 그래프", "③ 여러 조건 일괄 검증", "④ 대조변수 적용 효과", "⑤ ELS 로직 점검 (극단값 테스트)")
 
 
 def test_discount_factor():
@@ -167,7 +168,11 @@ def _app() -> AppTest:
     return at
 
 
-def test_verification_tab_shows_results():
+def test_verification_tab_shows_results(monkeypatch):
+    # 화면 흐름만 확인하므로 로직 점검 경로 수를 줄인다 (점검 자체는 test_logic_checks.py)
+    monkeypatch.setattr(logic_checks, "EXACT_PATHS", 2_000)
+    monkeypatch.setattr(logic_checks, "COMPARE_PATHS", 2_000)
+    monkeypatch.setattr(logic_checks, "DIRECTION_PATHS", 2_000)
     at = _app()
     assert [t.label for t in at.tabs] == ["ELS 평가", "엔진 검증"]
     assert not _titles(at)  # 누르기 전에는 계산하지 않음
@@ -181,6 +186,11 @@ def test_verification_tab_shows_results():
     metrics = {m.label: m.value for m in at.metric}
     assert metrics["표준오차 감소 배율"].endswith("배")
     assert float(metrics["표준오차 감소 배율"][:-1]) > 1
+    logic = at.table[0].value
+    assert len(logic) == 21
+    assert list(logic.columns) == ["테스트", "입력 조건", "기대 결과", "실제 결과", "판정"]
+    assert any(name.endswith("※") for name in logic["테스트"])
+    assert any("※ 표시는 95% 신뢰구간" in c.value and "시드에 따라" in c.value for c in at.caption)
 
     # 입력을 바꾸면 이전 결과를 보여 주지 않는다
     next(n for n in at.number_input if n.key == "vf_strike").set_value(110.0).run()
