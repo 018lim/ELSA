@@ -130,9 +130,15 @@ def parse_ki(text: str | None) -> tuple[str | None, float | None]:
     return "daily", barrier
 
 
+_DATE = re.compile(r"(\d{4})\s*[./\-년]\s*(\d{1,2})\s*[./\-월]\s*(\d{1,2})")
+
+
 def parse_months(text: str | None) -> int | None:
-    """'3년' → 36, '18개월' → 18, '1년 6개월' → 18, '6개월마다' → 6. 없으면 None."""
-    if not text:
+    """'3년' → 36, '18개월' → 18, '1년 6개월' → 18, '6개월마다' → 6. 없으면 None.
+
+    '2029년 11월 2일' 같은 날짜는 기간이 아니므로 None (2029년을 기간으로 읽지 않도록).
+    """
+    if not text or _DATE.search(text):
         return None
     # "1년 6개월"처럼 붙어 있으면 합산, "3년 만기 6개월 단위"처럼 떨어져 있으면 처음 나온 기간
     both = re.search(rf"({_NUM})\s*년\s*({_NUM})\s*개월", text)
@@ -144,18 +150,22 @@ def parse_months(text: str | None) -> int | None:
     return int(round(float(m.group(1)) * (12 if m.group(2) == "년" else 1)))
 
 
-_DATE = re.compile(r"(\d{4})\s*[./\-년]\s*(\d{1,2})\s*[./\-월]\s*(\d{1,2})")
-
-
 def months_between_dates(text: str | None) -> int | None:
-    """기간 문자열 속 두 날짜 사이의 개월 수 (가장 가까운 정수). 날짜가 두 개 없으면 None."""
+    """기간 문자열 속 두 날짜 사이의 개월 수 (가장 가까운 정수).
+
+    날짜가 두 개 없거나, 잘못 읽은 날짜이거나, 순서가 뒤집혀 기간이 0 이하면 None.
+    """
     if not text:
         return None
     found = _DATE.findall(text)
     if len(found) < 2:
         return None
-    d1, d2 = (date(int(y), int(m), int(d)) for y, m, d in found[:2])
-    return int(round((d2 - d1).days / (365.25 / 12)))
+    try:
+        d1, d2 = (date(int(y), int(m), int(d)) for y, m, d in found[:2])
+    except ValueError:
+        return None
+    months = int(round((d2 - d1).days / (365.25 / 12)))
+    return months if months > 0 else None
 
 
 def parse_coupon(text: str | None, obs_period_months: int | None = None) -> float | None:

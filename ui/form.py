@@ -140,11 +140,11 @@ def _render_knockout() -> None:
     c1, c2 = st.columns(2)
     c1.checkbox(lb("상승 녹아웃 사용", S.KO_UPPER_ON), key=S.KO_UPPER_ON)
     if ss[S.KO_UPPER_ON]:
-        c1.number_input(lb("상승 녹아웃 배리어 (%)", S.KO_UPPER), min_value=100.0, max_value=300.0, step=1.0,
+        c1.number_input(lb("상승 녹아웃 배리어 (%)", S.KO_UPPER), min_value=1.0, max_value=300.0, step=1.0,
                         key=S.KO_UPPER, help=hp(S.KO_UPPER))
     c2.checkbox(lb("하락 녹아웃 사용", S.KO_LOWER_ON), key=S.KO_LOWER_ON)
     if ss[S.KO_LOWER_ON]:
-        c2.number_input(lb("하락 녹아웃 배리어 (%)", S.KO_LOWER), min_value=1.0, max_value=100.0, step=1.0,
+        c2.number_input(lb("하락 녹아웃 배리어 (%)", S.KO_LOWER), min_value=1.0, max_value=300.0, step=1.0,
                         key=S.KO_LOWER, help=hp(S.KO_LOWER))
 
     c1, c2, c3 = st.columns(3)

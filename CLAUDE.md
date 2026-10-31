@@ -259,7 +259,7 @@ streamlit에 의존하지 않는 순수 함수. 공통 사항:
 - `factory.get_extractor()`가 설정값 `EXTRACTOR`, `EXTRACTOR_MODEL`로 만든다. 모델 이름은 코드에 넣지 않는다
 - 두 구현체는 `prompt.py`의 같은 프롬프트·JSON 스키마를 쓴다. Gemini는 `response_json_schema`, Claude는 `output_config.format`. 현재 Claude 모델은 tool 강제 호출을 400으로 거부하므로 쓰지 않는다
 - 추출기는 값을 해석하지 않고 **원문 표기를 필드별 문자열로** 옮긴다(`barriers_text`, `coupon_text`, `max_loss_text`, `product_name_text` 등). 단위 변환·날짜 계산·배리어 분해는 모두 `normalize.py`가 한다
-- 오류 변환: 429 → `QuotaExceeded`, 키·모델 없음·잘못된 키 → `NotConfigured`, 파싱 실패·타임아웃 → `ExtractionFailed`, 파일 형식·크기·PDF 페이지 → `UploadRejected`. Gemini 5xx는 최대 2회 재시도
+- 오류 변환: 429 → `QuotaExceeded`, 키·모델 없음·잘못된 키 → `NotConfigured`, 파싱 실패·타임아웃 → `ExtractionFailed`, 파일 형식·크기·PDF 페이지 → `UploadRejected`. Gemini 5xx는 최대 2회 재시도. 응답을 해석하다 난 예상 밖 오류도 화면에서는 `ExtractionFailed`와 같은 문구로 안내해 폼을 계속 쓸 수 있게 한다
 
 ### 7.2 화면 흐름 (`ui/upload.py`)
 1. 업로드(PNG·JPG·WEBP·PDF 3페이지 이하, 10MB) + "조건 읽기". 그 아래에 "체험할 샘플" 선택 + "샘플 이미지로 체험"
@@ -301,6 +301,7 @@ streamlit에 의존하지 않는 순수 함수. 공통 사항:
 | `매월 말일 종가 기준 50% 미만`, `KI 45 (월말 관찰)` | `monthly` (`월지급`은 월말 관찰이 아님) |
 | `연 8.0%`, `6개월마다 4%`, `월 0.51%` | 연 쿠폰 (월은 ×12). `월 0.51%, 연 6.12%`처럼 함께 있으면 '연' 값 우선 |
 | `3년`, `1년 6개월`, `투자기간 2026/10/30 ~ 2029/11/02` | 만기 개월 수 (날짜는 가장 가까운 개월) |
+| 만기 칸의 `2029년 11월 2일` | 날짜는 기간이 아니므로 버리고 투자기간 날짜로 계산. 잘못 읽은 날짜·뒤집힌 기간도 버린다 |
 | 평가 주기 미기재 | `만기 ÷ 배리어 개수` (low 확신도) |
 | `월지급 65` | `monthly_coupon_barrier = 0.65` |
 | `90(L75)-90(L70)-85-80-75-70` | 배리어 + `lizard_barriers = [0.75, 0.70]`. `리자드 75`처럼 값 하나면 전 회차 |
@@ -327,7 +328,7 @@ streamlit에 의존하지 않는 순수 함수. 공통 사항:
 
 ## 8. 비용·남용 방지
 공개 링크라 누구나 접속할 수 있다는 전제로 만든다.
-- 세션당 자동 입력 횟수 `MAX_EXTRACTIONS_PER_SESSION`(기본 5). 넘으면 업로드 비활성화(샘플 체험은 캐시라 가능)
+- 세션당 자동 입력 횟수 `MAX_EXTRACTIONS_PER_SESSION`(기본 5). 넘으면 업로드 비활성화(샘플 체험은 캐시라 가능). 판독에 실패해도 API를 썼으면 횟수에 넣고, API를 부르기 전에 걸러지면(파일 검사, 설정 없음) 넣지 않는다
 - 선택적 접근 코드 `ACCESS_CODE`: 있으면 자동 입력 전에 묻는다. 수동 입력·평가는 항상 가능
 - 업로드 10MB, PDF 3페이지, 추출 응답 최대 토큰 4096
 - 평가·민감도·샘플 추출 결과 캐시
@@ -405,7 +406,7 @@ MAX_EXTRACTIONS_PER_SESSION = 5
 ```powershell
 .\.venv\Scripts\Activate.ps1          # 가상환경 켜기
 pip install -r requirements-dev.txt   # 앱 + 테스트 도구 설치
-streamlit run app.py                  # http://localhost:8501
+streamlit run app.py                  # http://localhost:8501 (가상환경을 켜지 않았으면 .\.venv\Scripts\python.exe -m streamlit run app.py)
 pytest                                # 실제 API·네트워크 호출 제외
 pytest -m live                        # 실제 Gemini·Yahoo·ECOS·네이버 금융 호출 포함
 python scripts\make_sample.py         # 샘플 이미지 다시 만들기
@@ -419,7 +420,8 @@ python scripts\make_sample.py         # 샘플 이미지 다시 만들기
 4. 배포 URL을 README 상단에 추가
 - `requirements.txt`는 버전을 고정하고 실제로 쓰는 패키지만 넣는다
 - 클라우드에서 Yahoo·ECOS 접속이 막히면 안내 문구만 뜨고 기본값으로 계속 쓸 수 있어야 한다
-- 실제로 Community Cloud에서는 ECOS 접속이 제한 시간 초과로 실패한다(2026-11-01 확인, 같은 시점 국내 PC에서는 정상, Yahoo는 Cloud에서 정상). 그래서 조회 제한 시간을 5초로 두고, 실패하면 네이버 금융을 조회한다
+- 2026-11-01 Community Cloud에서 ECOS 접속이 제한 시간 초과로 계속 실패했다(같은 시점 국내 PC와 Cloud의 Yahoo는 정상). 앱 재시작 뒤에는 Cloud에서도 ECOS가 응답했고 원인은 확인하지 못했다. 항상 막혀 있다고 가정하지 말고, 그래서 조회 제한 시간을 5초로 두고 실패하면 네이버 금융을 조회한다. 네이버 경로는 국내 PC의 실제 호출로만 확인했고, Cloud에서 실제로 쓰인 적은 아직 확인되지 않았다
+- push한 코드가 사이트에 반영되지 않을 수 있다. `elsa/rates.py`를 고쳐 push했을 때 13분이 지나도 옛 코드가 돌았고 **Reboot app**(share.streamlit.io의 앱 메뉴) 뒤에 새 코드가 돌았다. 성공 문구가 같으면 버전을 구분할 수 없으니, 도움말처럼 바뀐 문구로 확인한다
 
 ## 15. 범위 밖 (v1에서 하지 않음)
 

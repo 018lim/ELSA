@@ -49,6 +49,21 @@ def test_parse_errors(data, message):
         parse_ecos_response(data)
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        [],
+        {"RESULT": "오류"},
+        {"StatisticSearch": {"row": [{"DATA_VALUE": "3.7"}]}},  # 날짜 없음
+        {"StatisticSearch": {"row": [_row("20261023", "숫자 아님")]}},
+    ],
+)
+def test_parse_ecos_unexpected_format_becomes_common_error(data):
+    # 공통 오류여야 네이버 조회로 넘어갈 수 있다
+    with pytest.raises(RateUnavailable, match="금리를 직접 입력해 주세요"):
+        parse_ecos_response(data)
+
+
 def test_missing_key():
     with pytest.raises(RateUnavailable, match="ECOS_API_KEY"):
         fetch_ktb3y("")

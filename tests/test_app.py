@@ -5,6 +5,7 @@
 - 녹아웃형으로 바꿔 평가할 수 있다
 - 자동 입력(pending_fill)이 위젯 값에 반영된다
 - 잘못된 입력은 한국어 오류로 안내된다
+- 추출 오류가 나도 폼을 계속 쓸 수 있고, API를 쓴 시도만 횟수에 포함된다
 """
 
 import json
@@ -13,6 +14,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from elsa.extraction.base import ExtractionFailed, NotConfigured, QuotaExceeded, UploadRejected
 from elsa.extraction.normalize import normalize_extraction
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -160,6 +162,54 @@ def test_buttons_hidden_while_extracting(monkeypatch):
     assert at.session_state["product_type"] == "knockout"
     assert at.session_state["ko_upper"] == pytest.approx(137)
     assert "샘플 이미지로 체험" in [b.label for b in at.button]
+
+
+def _run_upload_job(at: AppTest) -> AppTest:
+    at.session_state["extract_job"] = {"kind": "upload", "data": b"x", "mime": "image/png", "name": "a.png"}
+    at.run()
+    assert not at.exception, at.exception
+    return at
+
+
+class _FakeExtractor:
+    def __init__(self, error):
+        self.error = error
+
+    def extract(self, data, mime):
+        raise self.error
+
+
+@pytest.mark.parametrize(
+    "error, charged, message",
+    [
+        (ValueError("예상 밖 응답"), 1, "이미지에서 조건을 읽지 못했습니다"),  # 폼은 계속 쓸 수 있어야 한다
+        (ExtractionFailed("파싱 실패"), 1, "이미지에서 조건을 읽지 못했습니다"),  # API를 썼으므로 횟수에 포함
+        (QuotaExceeded("429"), 1, "오늘 자동 입력 한도"),
+        (NotConfigured("키 없음"), 0, "자동 입력이 설정되지 않았습니다"),
+        (UploadRejected("PNG, JPG"), 0, "PNG, JPG"),  # API 호출 전에 걸러짐
+    ],
+)
+def test_extraction_errors_keep_form_and_count_api_calls(monkeypatch, error, charged, message):
+    from ui import upload
+
+    monkeypatch.setattr(upload, "get_extractor", lambda: _FakeExtractor(error))
+    at = _run_upload_job(_app())
+    assert any(message in w.value for w in at.warning)
+    assert at.session_state["extraction_count"] == charged
+    at = _click(at, "평가하기")
+    assert _metric(at, "공정가치").value.endswith("%")
+
+
+def test_access_code_survives_extraction(monkeypatch):
+    from ui import upload
+
+    monkeypatch.setattr("elsa.config.access_code", lambda: "secret")
+    monkeypatch.setattr(upload, "get_extractor", lambda: _FakeExtractor(NotConfigured("키 없음")))
+    at = _app()
+    next(t for t in at.text_input if t.key == "access_code_input").set_value("secret").run()
+    at = _run_upload_job(at)
+    assert at.session_state["access_code_input"] == "secret"
+    assert not any("접근 코드가 맞지 않습니다" in w.value for w in at.warning)
 
 
 def test_rate_button_fills_ktb3y(monkeypatch):

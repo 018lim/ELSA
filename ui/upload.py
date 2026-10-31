@@ -79,19 +79,25 @@ def _run_job(job: dict) -> None:
     """등록된 작업을 실행한다. 이 실행에서는 업로드·샘플 버튼을 그리지 않으므로 판독 중에 누를 수 없다."""
     ss = st.session_state
     st.info(f"**{job['name']}** 에서 조건을 읽는 중입니다. 끝날 때까지 기다려 주세요.")
+    charged = job["kind"] == "upload"  # 샘플은 캐시되므로 세지 않는다. 업로드는 판독에 실패해도 API를 쓰므로 센다
     try:
         with st.spinner("AI가 이미지를 판독하고 있습니다... (보통 10~30초, 서비스 상태에 따라 더 걸릴 수 있습니다)"):
             if job["kind"] == "sample":
                 result = _extract_sample(job["file"], config.extractor_name() + config.extractor_model())
             else:
                 result = get_extractor().extract(job["data"], job["mime"]).model_dump()
-                ss[S.EXTRACTION_COUNT] = ss.get(S.EXTRACTION_COUNT, 0) + 1
     except UploadRejected as e:
+        charged = False
         ss["extract_error"] = str(e)
     except ExtractionError as e:
+        charged = charged and not isinstance(e, NotConfigured)
         ss["extract_error"] = ERROR_TEXT.get(type(e), FAILED_TEXT)
+    except Exception:  # 응답을 해석하다 난 예상 밖 오류. 어떤 경우에도 폼은 계속 쓸 수 있어야 한다
+        ss["extract_error"] = FAILED_TEXT
     else:
         ss[S.PENDING_FILL] = result
+    if charged:
+        ss[S.EXTRACTION_COUNT] = ss.get(S.EXTRACTION_COUNT, 0) + 1
     st.rerun()
 
 

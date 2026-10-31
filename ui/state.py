@@ -7,7 +7,7 @@ elsa 패키지로 넘길 때 build_request()에서 한 번만 소수(0.85)로 �
 추출 결과를 PENDING_FILL에 넣고 rerun → 다음 실행 맨 앞에서 apply_pending_fill()이
 위젯 key에 옮겨 쓴다.
 
-- 위젯 key 상수와 key 함수(ul_name, ul_ticker, vol_key, div_key, corr_key)
+- 위젯 key 상수와 key 함수(ul_name, ul_ticker, vol_key, div_key, div_meta, corr_key)
 - init_state(): 첫 접속 시 기준값 예시(삼성전자/SK하이닉스)로 채움, 이후에는 persist_widgets()
 - persist_widgets(): 화면에 안 그려진 위젯 값이 Streamlit에 의해 지워지지 않게 고정
 - set_underlying_defaults(i): 종목명으로 종목표의 티커·기본 변동성·배당을 채움
@@ -168,6 +168,8 @@ def _widget_defaults() -> dict[str, Any]:
     """모든 폼 위젯 key와 값이 없을 때 쓸 기본값."""
     defaults: dict[str, Any] = dict(EXAMPLE)
     defaults["sample_choice"] = "자동조기상환형 (예시증권 제1호)"  # ui/upload.py SAMPLES의 첫 항목
+    defaults["access_code_input"] = ""
+    defaults["paste_closes"] = ""
     for i in range(MAX_UL):
         defaults[ul_name(i)] = ""
         defaults[ul_ticker(i)] = ""
