@@ -6,6 +6,7 @@
 - 자동 입력(pending_fill)이 위젯 값에 반영된다
 - 잘못된 입력은 한국어 오류로 안내된다
 - 추출 오류가 나도 폼을 계속 쓸 수 있고, API를 쓴 시도만 횟수에 포함된다
+- 결과 문구가 상품 유형에 맞게 나오고, 입력값 해석과 적정값 민감도를 보여 준다
 """
 
 import json
@@ -60,6 +61,74 @@ def test_knockout_product():
     at = _click(at, "평가하기")
     assert _metric(at, "녹아웃 확률").value.endswith("%")
     assert float(_metric(at, "공정가치").value[:-1]) > 95  # 원금 보장
+
+
+def _captions(at: AppTest) -> list[str]:
+    return [c.value for c in at.caption]
+
+
+def test_autocall_result_reads_in_coupon_terms():
+    at = _click(_app(), "평가하기")
+    assert any("입력 쿠폰이 목표 대비 낮음 (발행사에게 유리)" in c for c in _captions(at))
+    assert any(c.startswith("공정가치 0.1%p 변화 시 적정 연 쿠폰 약 ±") for c in _captions(at))
+    assert any("쿠폰이 부족한 조건" in e.value for e in at.error)
+
+
+def test_knockout_result_reads_in_participation_terms():
+    at = _app()
+    at.session_state["product_type"] = "knockout"
+    at.session_state["n_underlyings"] = 1
+    at.session_state["ko_participation"] = 1000.0  # 적정 참여율보다 높게
+    at = _click(at, "평가하기")
+    assert any("입력 참여율이 목표 대비 높음 (투자자에게 유리)" in c for c in _captions(at))
+    assert any(c.startswith("공정가치 0.1%p 변화 시 적정 참여율 약 ±") for c in _captions(at))
+    assert not any("쿠폰" in c for c in _captions(at) if "입력" in c or "0.1%p" in c)
+
+
+def test_blank_coupon_shows_sensitivity_without_comparison():
+    at = _app()
+    at.session_state["ac_coupon"] = None
+    at = _click(at, "평가하기")
+    assert any(c.startswith("공정가치 0.1%p 변화 시") for c in _captions(at))
+    assert not any("입력 쿠폰이" in c for c in _captions(at))
+
+
+@pytest.mark.parametrize(
+    "value, is_ko, phrase",
+    [
+        (0.90, False, "위험 대비 쿠폰이 부족한 조건"),
+        (0.90, True, "위험 대비 참여율이 부족한 조건"),
+        (0.97, True, "일반적인 발행 수준"),
+        (0.999, True, "액면에 근접"),
+    ],
+)
+def test_verdict_uses_product_terms(value, is_ko, phrase):
+    from ui.results import verdict
+
+    assert phrase in verdict(value, is_ko)[1]
+
+
+@pytest.mark.parametrize(
+    "diff, text",
+    [
+        (0.6916, "+69.16%p → 입력 참여율이 목표 대비 높음 (투자자에게 유리)"),
+        (-0.2632, "−26.32%p → 입력 참여율이 목표 대비 낮음 (발행사에게 유리)"),
+        (0.00001, "입력 참여율이 목표와 같음"),
+    ],
+)
+def test_compare_text(diff, text):
+    from ui.results import compare_text
+
+    assert compare_text("참여율", diff) == text
+
+
+@pytest.mark.parametrize(
+    "change, amount", [(0.192, "19"), (0.0512, "5.1"), (0.00052, "0.052"), (1.2345, "123")],
+)
+def test_fair_change_text(change, amount):
+    from ui.results import fair_change_text
+
+    assert fair_change_text("적정 참여율", change) == f"공정가치 0.1%p 변화 시 적정 참여율 약 ±{amount}%p 변화"
 
 
 def _set_widget(at: AppTest, key: str, value) -> AppTest:

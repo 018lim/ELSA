@@ -4,7 +4,10 @@
 
 - cached_price(request_json): 평가 결과 캐시 (@st.cache_data)
 - cached_sensitivity(request_json): 민감도 결과 캐시
-- verdict(price): 공정가치 수준 판정 문구
+- cached_fair_sensitivity(request_json): 공정가치 0.1%p당 적정 쿠폰(참여율) 변화폭 캐시
+- verdict(price, is_ko): 공정가치 수준 판정 문구 (상품 유형별 표현)
+- compare_text(noun, diff): 입력값과 적정값 차이의 해석 문구
+- fair_change_text(fair_name, change): 적정값 민감도 문구
 - render_result(request, result): 결과 전체 표시
 - render_sensitivity(request): 민감도 분석 버튼과 결과 표
 """
@@ -16,7 +19,7 @@ import pandas as pd
 import streamlit as st
 
 from elsa.pricing.engine import price
-from elsa.pricing.sensitivity import run_sensitivity
+from elsa.pricing.sensitivity import FAIR_BUMP, fair_sensitivity, run_sensitivity
 from elsa.schemas import AutocallTerms, KnockoutTerms, PricingRequest, PricingResult
 
 
@@ -30,17 +33,41 @@ def cached_sensitivity(request_json: str) -> list[dict]:
     return [vars(r) for r in run_sensitivity(PricingRequest.model_validate_json(request_json))]
 
 
+@st.cache_data(show_spinner=False, max_entries=64)
+def cached_fair_sensitivity(request_json: str) -> float | None:
+    r = cached_price(request_json)
+    fair = r["fair_participation"] if r["product_type"] == "knockout" else r["fair_coupon_annual"]
+    return fair_sensitivity(PricingRequest.model_validate_json(request_json), fair)
+
+
 def _p(x: float | None, digits: int = 1) -> str:
     return "—" if x is None else f"{x * 100:.{digits}f}%"
 
 
-def verdict(value: float) -> tuple[str, str]:
-    """(st 함수 이름, 문구)."""
+def verdict(value: float, is_ko: bool = False) -> tuple[str, str]:
+    """(st 함수 이름, 문구). 공정가치만 보고 판정한다. 목표 공정가치는 쓰지 않는다."""
     if value < 0.94:
-        return "error", "공정가치가 낮음 · 위험 대비 쿠폰이 부족한 조건"
+        return "error", f"공정가치가 낮음 · 위험 대비 {'참여율' if is_ko else '쿠폰'}이 부족한 조건"
     if value <= 0.995:
         return "info", "일반적인 발행 수준"
     return "success", "액면에 근접 · 투자자에게 유리한 조건"
+
+
+def compare_text(noun: str, diff: float) -> str:
+    """입력값 − 적정값(소수)의 해석. 쿠폰·참여율이 높을수록 공정가치도 높으므로 높으면 투자자에게 유리하다."""
+    text = f"{diff * 100:+.2f}%p".replace("-", "−")
+    if round(diff * 100, 2) == 0:
+        return f"입력 {noun}이 목표와 같음"
+    if diff > 0:
+        return f"{text} → 입력 {noun}이 목표 대비 높음 (투자자에게 유리)"
+    return f"{text} → 입력 {noun}이 목표 대비 낮음 (발행사에게 유리)"
+
+
+def fair_change_text(fair_name: str, change: float) -> str:
+    """공정가치 FAIR_BUMP 변화당 적정값 변화폭(소수)을 한 줄로."""
+    pct = change * 100
+    amount = f"{pct:.0f}" if pct >= 10 else f"{pct:.2g}"
+    return f"공정가치 {FAIR_BUMP * 100:g}%p 변화 시 {fair_name} 약 ±{amount}%p 변화"
 
 
 def render_result(req: PricingRequest, r: PricingResult) -> None:
@@ -48,6 +75,7 @@ def render_result(req: PricingRequest, r: PricingResult) -> None:
     is_ko = isinstance(ts, KnockoutTerms)
     fair = r.fair_participation if is_ko else r.fair_coupon_annual
     fair_name = "적정 참여율" if is_ko else "적정 연 쿠폰"
+    noun = "참여율" if is_ko else "쿠폰"
     current = ts.participation if is_ko else ts.coupon_annual
 
     st.subheader("평가 결과")
@@ -69,9 +97,14 @@ def render_result(req: PricingRequest, r: PricingResult) -> None:
         c2.caption(f"{fair_name}이 0% 이하: 지급이 없어도 목표 공정가치 이상입니다.")
     elif fair is None:
         c2.caption("현실적인 범위에서 목표 공정가치에 도달하지 않습니다.")
+    if fair is not None and current is not None:
+        c2.caption(compare_text(noun, current - fair))
+    change = cached_fair_sensitivity(req.model_dump_json())
+    if change:
+        c2.caption(fair_change_text(fair_name, change))
 
     if r.price is not None:
-        kind, text = verdict(r.price)
+        kind, text = verdict(r.price, is_ko)
         getattr(st, kind)(text)
 
     if is_ko:
