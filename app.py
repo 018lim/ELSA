@@ -57,6 +57,7 @@ with tab_main:
                 st.session_state[S.LAST_RESULT] = {
                     "request": key, "result": results.cached_price(key), "warnings": report.warnings,
                 }
+                results.cached_fair_sensitivity(key)  # 결과 화면에서 기다리지 않도록 미리 계산해 둔다
 
     saved = st.session_state.get(S.LAST_RESULT)
     if saved:
