@@ -73,6 +73,16 @@ SIM_PATHS = "sim_paths"
 SIM_SEED = "sim_seed"
 SIM_TARGET = "sim_target"
 
+VF_S0 = "vf_s0"  # 엔진 검증 탭 입력
+VF_STRIKE = "vf_strike"
+VF_VOL = "vf_vol"
+VF_RATE = "vf_rate"
+VF_DIV = "vf_div"
+VF_YEARS = "vf_years"
+VF_PATHS = "vf_paths"
+VF_SEED = "vf_seed"
+VF_RESULT = "vf_result"  # {"key": 입력값, "report": dict, "logic": list[dict]}
+
 PENDING_FILL = "pending_fill"
 AUTOFILL_META = "autofill_meta"  # {위젯 key: {"source": 근거 원문, "low": bool}}
 MARKET_META = "market_meta"  # {자산 번호(변동성) 또는 div_meta(i)(배당) 또는 "corr": 출처 표기}
@@ -141,6 +151,14 @@ EXAMPLE: dict[str, Any] = {
     SIM_PATHS: 100_000,
     SIM_SEED: 42,
     SIM_TARGET: 100.0,
+    VF_S0: 100.0,
+    VF_STRIKE: 100.0,
+    VF_VOL: 20.0,
+    VF_RATE: 3.0,
+    VF_DIV: 0.0,
+    VF_YEARS: 1.0,
+    VF_PATHS: 100_000,
+    VF_SEED: 42,
 }
 EXAMPLE_UNDERLYINGS = ["삼성전자", "SK하이닉스"]
 EXAMPLE_CORR = 0.6
