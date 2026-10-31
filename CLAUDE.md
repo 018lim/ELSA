@@ -57,6 +57,8 @@ GitHub(`018lim/elsa`)에 공개하고 Streamlit Community Cloud에 배포해, �
 ELSA/
 ├── CLAUDE.md
 ├── README.md
+├── docs/
+│   └── methodology.md          # 평가방법론 (상품별 페이오프, 모형, 수치 기법, 입력변수, 검증 결과, 한계)
 ├── app.py                      # Streamlit 진입점. 화면 구성만, 계산 로직 없음
 ├── requirements.txt            # 배포용 (버전 고정)
 ├── requirements-dev.txt        # + pytest
@@ -391,6 +393,7 @@ MAX_EXTRACTIONS_PER_SESSION = 5
 ## 12. 작업 규칙
 
 - 기능을 바꾸면 테스트를 같이 고치거나 추가해 통과시킨다. 엔진을 바꾸면 기준값 테스트를 반드시 돌린다
+- 평가 규칙·입력·검증이 바뀌면 `docs/methodology.md`도 같이 고친다. 이 문서의 표는 실제 실행 결과로 채우고, 수치의 기준 커밋을 적는다
 - **모든 `.py` 파일 맨 위에 docstring**: 파일의 목적 + 주요 함수·클래스와 기능 요약. 함수를 추가·삭제하면 docstring 목록도 고친다
 - 추출기 테스트는 실제 API를 부르지 않고 `tests/fixtures/`의 응답 JSON으로 검증한다. 실제 API·네트워크 호출은 `@pytest.mark.live`
 - `elsa/` 패키지는 streamlit을 import하지 않는다 (`config.py`의 함수 내부 조회만 예외)
