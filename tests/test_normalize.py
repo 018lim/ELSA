@@ -85,6 +85,11 @@ def test_parse_months_ignores_dates(text):
     assert parse_months(text) is None  # 2029년을 기간으로 읽으면 24,348개월이 된다
 
 
+@pytest.mark.parametrize("text", ["3년 (만기일 2029.11.02)", "만기일 2029년 11월 2일 (3년)", "36개월, 2029/11/02"])
+def test_parse_months_keeps_period_next_to_date(text):
+    assert parse_months(text) == 36
+
+
 def test_maturity_date_falls_back_to_investment_period():
     raw = {"product_type": "autocall", "barriers_text": "90-85-80", "maturity_text": "2029년 11월 2일",
            "investment_period_text": "2026/11/02 ~ 2029/11/02"}
