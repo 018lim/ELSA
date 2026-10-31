@@ -197,13 +197,34 @@ def test_rate_cache_survives_module_reload(monkeypatch):
 
 
 def test_rate_button_without_key_keeps_value(monkeypatch):
+    from elsa import rates
     from ui import form
+
+    def naver_fails():
+        raise rates.RateUnavailable("네이버 금융에서 금리를 받지 못했습니다.")
 
     form.fetch_rate.clear()
     monkeypatch.setattr("elsa.config.get_setting", lambda name, default="": "")
+    monkeypatch.setattr(rates, "fetch_ktb3y_naver", naver_fails)
     at = _click(_app(), "🏦 국고채 3년 불러오기")
     assert at.session_state["mk_rate"] == 2.8
     assert any("ECOS_API_KEY" in w.value for w in at.warning)
+    form.fetch_rate.clear()
+
+
+def test_rate_button_uses_naver_when_ecos_fails(monkeypatch):
+    from elsa import rates
+    from ui import form
+
+    def ecos_fails(key):
+        raise rates.RateUnavailable("ECOS에서 응답을 받지 못했습니다.")
+
+    form.fetch_rate.clear()
+    monkeypatch.setattr(rates, "fetch_ktb3y", ecos_fails)
+    monkeypatch.setattr(rates, "fetch_ktb3y_naver", lambda: rates.RateQuote(0.03713, "2026-10-30", "국고채(3년)", rates.SOURCE_NAVER))
+    at = _click(_app(), "🏦 국고채 3년 불러오기")
+    assert at.session_state["mk_rate"] == pytest.approx(3.713)
+    assert any("네이버 금융(레피니티브)의 국고채(3년) 금리 3.713%" in s.value for s in at.success)
     form.fetch_rate.clear()
 
 
