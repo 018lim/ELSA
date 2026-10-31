@@ -136,10 +136,11 @@ _DATE = re.compile(r"(\d{4})\s*[./\-년]\s*(\d{1,2})\s*[./\-월]\s*(\d{1,2})")
 def parse_months(text: str | None) -> int | None:
     """'3년' → 36, '18개월' → 18, '1년 6개월' → 18, '6개월마다' → 6. 없으면 None.
 
-    '2029년 11월 2일' 같은 날짜는 기간이 아니므로 None (2029년을 기간으로 읽지 않도록).
+    '2029년 11월 2일' 같은 날짜는 기간이 아니므로 지우고 본다 (2029년을 기간으로 읽지 않도록).
     """
-    if not text or _DATE.search(text):
+    if not text:
         return None
+    text = _DATE.sub(" ", text)
     # "1년 6개월"처럼 붙어 있으면 합산, "3년 만기 6개월 단위"처럼 떨어져 있으면 처음 나온 기간
     both = re.search(rf"({_NUM})\s*년\s*({_NUM})\s*개월", text)
     if both:
