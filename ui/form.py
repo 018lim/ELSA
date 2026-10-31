@@ -8,7 +8,7 @@
   종가 붙여넣기
 - render_sim_settings(): 경로 수, 시드, 적정 쿠폰 목표값 (접힌 expander)
 - fetch_market_estimate(tickers, months, div_tickers): yfinance 추정 결과(변동성·상관·배당) 캐시 (하루)
-- fetch_rate(day): ECOS 국고채 3년 금리 캐시 (날짜별). 인증키는 설정(ECOS_API_KEY)에서만 읽음
+- fetch_rate(day): 국고채 3년 금리 캐시 (날짜별, ECOS → 네이버 금융). 인증키는 설정(ECOS_API_KEY)에서만 읽음
 """
 
 from __future__ import annotations
@@ -236,7 +236,7 @@ def _on_fetch(months: int) -> None:
 def fetch_rate(day: str) -> dict:
     """day는 캐시 구분용(하루 단위). 인증키를 캐시 key에 넣지 않으려고 함수 안에서 읽는다.
     캐시에는 dict만 저장한다(코드가 다시 불러와져도 저장·복원이 깨지지 않도록)."""
-    return asdict(rates.fetch_ktb3y(config.get_setting("ECOS_API_KEY")))
+    return asdict(rates.fetch_latest_rate(config.get_setting("ECOS_API_KEY")))
 
 
 def _on_fetch_rate() -> None:
@@ -250,7 +250,7 @@ def _on_fetch_rate() -> None:
         return
     ss[S.RATE] = round(q.rate * 100, 3)
     ss[S.MARKET_META]["rate"] = f"{q.name} {q.as_of}"
-    ss[S.MARKET_MSG] = ("success", f"한국은행 ECOS의 {q.name} 금리 {q.rate * 100:.3f}% ({q.as_of} 기준)를 넣었습니다.")
+    ss[S.MARKET_MSG] = ("success", f"{q.source}의 {q.name} 금리 {q.rate * 100:.3f}% ({q.as_of} 기준)를 넣었습니다.")
 
 
 def _on_paste() -> None:
@@ -303,7 +303,7 @@ def render_market_form() -> None:
     c1.number_input(f"무위험이자율 (%){rate_tag}", min_value=-5.0, max_value=20.0, step=0.1, format="%.3f",
                     key=S.RATE, help="원화로 정산되는 ELS이므로 원화 금리(국고채 등)를 씁니다")
     c2.button("🏦 국고채 3년 불러오기", on_click=_on_fetch_rate, width="stretch",
-              help="한국은행 ECOS에서 가장 최근 국고채(3년) 금리를 가져옵니다")
+              help="한국은행 ECOS에서 가장 최근 국고채(3년) 금리를 가져옵니다. 접속되지 않으면 네이버 금융의 값을 씁니다")
 
     c1, c2 = st.columns([3, 2], vertical_alignment="bottom")
     months = c1.number_input("변동성 추정 기간 (개월)", min_value=market.MIN_EST_MONTHS, max_value=market.MAX_EST_MONTHS,

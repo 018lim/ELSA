@@ -38,7 +38,7 @@ GitHub(`018lim/elsa`)에 공개하고 Streamlit Community Cloud에 배포해, �
 | 데이터 검증 | Pydantic v2 | 조건·시장 데이터·평가 결과·추출 결과 스키마 |
 | 이미지 분석 | 교체 가능한 추출기. 기본 Gemini(`google-genai`), 대안 Claude(`anthropic`) | 모델은 설정값으로만 지정. 권장 `gemini-flash-lite-latest`(장당 약 10초, 실측 정확도 충분). `gemini-flash-latest`는 80~250초로 느렸음 |
 | 시세 | yfinance (+pandas) | 과거 종가로 실현변동성·상관계수·배당 추정. 비공식 라이브러리라 실패할 수 있으므로 항상 폴백(기본값·붙여넣기·직접 입력)을 둔다 |
-| 금리 | 한국은행 ECOS API (표준 라이브러리 urllib) | 무위험이자율 = 국고채(3년). 원화 정산 상품이라 미국 국채 금리는 쓰지 않는다. pykrx는 KRX 계정 로그인이 필요하고 pandas 3과 충돌해 쓰지 않는다 |
+| 금리 | 한국은행 ECOS API, 실패하면 네이버 금융 (표준 라이브러리 urllib) | 무위험이자율 = 국고채(3년). 원화 정산 상품이라 미국 국채 금리는 쓰지 않는다. pykrx는 KRX 계정 로그인이 필요하고 pandas 3과 충돌해 쓰지 않는다. Yahoo에는 금리가 없고(국채 ETF 가격뿐), FRED에는 3년물이 없어 쓰지 않는다 |
 | 차트 | altair | 회차별 상환 확률 막대 차트 |
 | PDF | pypdf | 업로드 PDF 페이지 수 확인 |
 | 비밀값 | `st.secrets` (배포) / `.streamlit/secrets.toml` (로컬, 커밋 금지) | API 키를 저장소와 브라우저에 노출하지 않음 |
@@ -72,7 +72,7 @@ ELSA/
 │   ├── schemas.py              # AutocallTerms, KnockoutTerms, MarketData, SimSettings, PricingRequest/Result, ExtractionResult
 │   ├── validation.py           # 조건 검증 (수동·자동 공통)
 │   ├── market.py               # 종목표 조회, yfinance 시세, 종가로 변동성·상관계수·배당 추정
-│   ├── rates.py                # ECOS 국고채(3년) 금리 조회
+│   ├── rates.py                # 국고채(3년) 금리 조회 (ECOS → 네이버 금융)
 │   ├── data/underlyings.json   # 종목표 (이름·별칭·티커·기본 변동성·배당·대체 ETF). 코드 수정 없이 항목 추가
 │   ├── pricing/
 │   │   ├── engine.py           # 몬테카를로 엔진
@@ -319,7 +319,7 @@ streamlit에 의존하지 않는 순수 함수. 공통 사항:
 - 기초자산 이름을 입력하거나 자동 입력되면 종목표의 티커·기본 변동성·배당을 채우고 "(기본값)" 표기. 표에 없으면 빈칸(제안 티커만)
 - **시세로 추정**: 추정 기간(개월, 2~120, 기본 12)의 일별 종가로 실현변동성(로그수익률 표준편차 × √252)·상관계수. 공통 거래일만. "(과거 N개월 기준)" 표기
 - **배당**: 같은 버튼에서 최근 1년 실제 배당금 합계 ÷ 현재 주가. Yahoo 요약값(`dividendYield`)은 단위가 섞여 쓰지 않는다. 지수는 `div_ticker`(S&P500→SPY, EUROSTOXX50→FEZ)로 계산, 닛케이225는 대체 ETF가 없어 기본값 유지
-- **금리**: "국고채 3년 불러오기"가 ECOS(통계 `817Y002`, 항목 `010200000`)의 최근 10일 중 가장 최근 값을 채움. 키는 `ECOS_API_KEY`
+- **금리**: "국고채 3년 불러오기"가 ECOS(통계 `817Y002`, 항목 `010200000`)의 최근 10일 중 가장 최근 값을 채움. 키는 `ECOS_API_KEY`. ECOS가 실패하면(키 없음 포함) 네이버 금융(`KR3YT=RR`, 키 없음)의 값을 쓰고 출처를 표시한다. 네이버 주소는 비공식이라 응답을 검사하고, 형식이 다르면 값을 넣지 않는다. 둘 다 실패하면 ECOS 오류를 안내한다
 - 모두 실패하면 안내만 띄우고 기존 값을 유지한다. 붙여넣은 종가도 같은 계산 함수를 쓴다
 - 캐시: 시세 하루, 금리 6시간
 
@@ -342,7 +342,7 @@ EXTRACTOR = "gemini"                      # "gemini" 또는 "claude"
 EXTRACTOR_MODEL = "gemini-flash-lite-latest"
 GEMINI_API_KEY = ""
 ANTHROPIC_API_KEY = ""                    # EXTRACTOR="claude"일 때만
-ECOS_API_KEY = ""                         # 국고채 3년 금리. 비우면 금리 직접 입력
+ECOS_API_KEY = ""                         # 국고채 3년 금리. 비우면 네이버 금융 값 사용
 ACCESS_CODE = ""                          # 비우면 접근 코드 없음
 MAX_EXTRACTIONS_PER_SESSION = 5
 ```
@@ -407,7 +407,7 @@ MAX_EXTRACTIONS_PER_SESSION = 5
 pip install -r requirements-dev.txt   # 앱 + 테스트 도구 설치
 streamlit run app.py                  # http://localhost:8501
 pytest                                # 실제 API·네트워크 호출 제외
-pytest -m live                        # 실제 Gemini·Yahoo·ECOS 호출 포함
+pytest -m live                        # 실제 Gemini·Yahoo·ECOS·네이버 금융 호출 포함
 python scripts\make_sample.py         # 샘플 이미지 다시 만들기
 ```
 
@@ -419,6 +419,7 @@ python scripts\make_sample.py         # 샘플 이미지 다시 만들기
 4. 배포 URL을 README 상단에 추가
 - `requirements.txt`는 버전을 고정하고 실제로 쓰는 패키지만 넣는다
 - 클라우드에서 Yahoo·ECOS 접속이 막히면 안내 문구만 뜨고 기본값으로 계속 쓸 수 있어야 한다
+- 실제로 Community Cloud에서는 ECOS 접속이 제한 시간 초과로 실패한다(2026-11-01 확인, 같은 시점 국내 PC에서는 정상, Yahoo는 Cloud에서 정상). 그래서 조회 제한 시간을 5초로 두고, 실패하면 네이버 금융을 조회한다
 
 ## 15. 범위 밖 (v1에서 하지 않음)
 
