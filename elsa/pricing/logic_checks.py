@@ -291,7 +291,7 @@ def check_vol_direction(seed: int) -> list[LogicCheck]:
 
     return [
         LogicCheck(
-            name="(5a) 일반형", condition="기준 상품, 양쪽 σ 20 → 60%", expected="계속 하락",
+            name="(5a) 일반형", condition="기준 상품의 구조, 양쪽 σ 20 → 60%, q 1%", expected="계속 하락",
             actual=_series(autocall), passed=is_decreasing(autocall),
         ),
         LogicCheck(
