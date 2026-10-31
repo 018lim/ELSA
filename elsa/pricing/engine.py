@@ -8,6 +8,7 @@
 - price(request): 상품 유형에 맞는 평가 함수를 골라 PricingResult를 돌려준다
 - price_autocall(...): 자동조기상환형(일반·월지급식·리자드, 최대 손실률) 평가. 적정 쿠폰을 함께 계산
 - price_knockout(...): 녹아웃형 평가(최대 손실률 포함). 적정 참여율을 함께 계산
+- discount_factor(rate, months): 연속복리 할인계수
 - _iter_batches(...): 배치별로 월 단위 워스트 퍼포머 통계를 내보내는 경로 생성기
 
 적정 쿠폰: 지급액이 쿠폰에 선형이라 경로별로 쿠폰 무관 현재가치 A와 쿠폰 1.0당
@@ -41,6 +42,11 @@ def price(request: PricingRequest) -> PricingResult:
     if isinstance(ts, AutocallTerms):
         return price_autocall(ts, request.market, request.sim)
     return price_knockout(ts, request.market, request.sim)
+
+
+def discount_factor(rate: float, months: int) -> float:
+    """연속복리 할인계수 exp(−r × 개월/12)."""
+    return float(np.exp(-rate * months / 12.0))
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +176,7 @@ def price_autocall(ts: AutocallTerms, market: MarketData, sim: SimSettings) -> P
         b = np.zeros(n)
 
         for m, w_end, w_min, _ in months_iter:
-            df = np.exp(-market.rate * m / 12.0)
+            df = discount_factor(market.rate, m)
             if ki_mode == "daily":
                 ki_hit |= alive & (w_min < ki_barrier)
             elif ki_mode == "monthly":  # 매월 말일(21번째 영업일) 종가만 확인. 만기일도 월말이라 포함
@@ -297,7 +303,7 @@ def price_knockout(ts: KnockoutTerms, market: MarketData, sim: SimSettings) -> P
         cap = 1.0 if ts.max_loss is None else ts.max_loss  # 제한 없음이면 원금 전액까지
         loss_parts.append(np.where(ko, 0.0, np.minimum(adverse, cap)))  # 녹아웃이면 손실 없음
 
-    df = float(np.exp(-market.rate * months / 12.0))
+    df = discount_factor(market.rate, months)
 
     def pv_paths(p: float) -> list[np.ndarray]:
         return [
